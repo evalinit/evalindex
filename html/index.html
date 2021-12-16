@@ -35,11 +35,15 @@
                 eval(payload.code)
               }
             })
+            conn.send({
+              type: 'init',
+              href: window.location.href
+            })
           })
         }
         eval(index)
       })
-    }(window))
+    }())
   </script>
 </body>
 </html>
