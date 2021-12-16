@@ -4,6 +4,6 @@ services:
   app:
     build: '.'
     volumes:
-      - ./app:/usr/share/nginx/html
+      - ./html:/usr/share/nginx/html
     ports:
       - '8000:80'

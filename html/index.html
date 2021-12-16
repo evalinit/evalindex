@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>eval index</title>
+</head>
+<body>
+  <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
+  <script>
+    (function () {
+      const splitDomain = window.location.host.split('.')
+      const subdomain = splitDomain[0]
+      let myPeerId
+      let remotePeerId
+      let secret
+      if (subdomain.endsWith('-server')) {
+        myPeerId = subdomain
+        secret = prompt('SECRET')
+      } else {
+        remotePeerId = `${subdomain}-server`
+      }
+      const me = new Peer(myPeerId, {
+        host: 'peerjspoc.caveon.com',
+        path: '/myapp',
+        port: '',
+        secret: secret
+      })
+      me.on('open', (id) => {
+        let index = localStorage.getItem('index.js')
+        if (remotePeerId) {
+          // get init from remote peer
+          conn = me.connect(remotePeerId)
+          conn.on('open', () => {
+            conn.on('data', (payload) => {
+              if (payload.type == 'eval') {
+                eval(payload.code)
+              }
+            })
+          })
+        }
+        eval(index)
+      })
+    }(window))
+  </script>
+</body>
+</html>
