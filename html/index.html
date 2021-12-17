@@ -7,8 +7,7 @@
   <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
   <script>
     (function () {
-      const splitDomain = window.location.host.split('.')
-      const subdomain = splitDomain[0]
+      const subdomain = window.location.host.split('.')[0]
       let myPeerId
       let remotePeerId
       let secret
@@ -21,7 +20,6 @@
       const me = new Peer(myPeerId, {
         host: 'peerjspoc.caveon.com',
         path: '/myapp',
-        port: '',
         secret: secret
       })
       me.on('open', (id) => {

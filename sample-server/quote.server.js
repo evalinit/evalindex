@@ -1,4 +1,5 @@
 const app = document.createElement('div')
+app.id = 'quote'
 app.innerText = 'hello from quote'
 document.body.appendChild(app)
 
@@ -21,12 +22,9 @@ const router = {
   }
 }
 
-me.on('connection', (conn) => {
-  conn.on('data', async (payload) => {
-    const appKey = payload.href.split('/')[3]
-    if (appKey != 'quote') return null
-    if (router.hasOwnProperty(payload.type)) {
-      router[payload.type](conn, payload)
-    }
-  })
+app.addEventListener('data', (event) => {
+  const {conn, payload} = event.detail
+  if (router.hasOwnProperty(payload.type)) {
+    router[payload.type](conn, payload)
+  }
 })
