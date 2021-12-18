@@ -4,7 +4,7 @@ for (const key in localStorage) {
   }
 }
 
-me.on('connection', (conn) => {
+window.me.on('connection', (conn) => {
   conn.on('data', async (payload) => {
     const appKey = payload.href.split('/')[3] || 'home'
     const app = document.getElementById(appKey)

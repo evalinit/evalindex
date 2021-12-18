@@ -6,6 +6,9 @@
 <body>
   <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
   <script>
+    function geval(code) {
+      eval(code)
+    }
     (function () {
       const subdomain = window.location.host.split('.')[0]
       let myPeerId
@@ -17,29 +20,29 @@
       } else {
         remotePeerId = `${subdomain}-server`
       }
-      const me = new Peer(myPeerId, {
+      window.me = new Peer(myPeerId, {
         host: 'peerjspoc.caveon.com',
         path: '/myapp',
         secret: secret
       })
-      me.on('open', (id) => {
+      window.me.on('open', (id) => {
         let index = localStorage.getItem('index.js')
         if (remotePeerId) {
           // get init from remote peer
-          conn = me.connect(remotePeerId)
-          conn.on('open', () => {
-            conn.on('data', (payload) => {
+          window.conn = window.me.connect(remotePeerId)
+          window.conn.on('open', () => {
+            window.conn.on('data', (payload) => {
               if (payload.type == 'eval') {
-                eval(payload.code)
+                geval(payload.code)
               }
             })
-            conn.send({
+            window.conn.send({
               type: 'init',
               href: window.location.href
             })
           })
         }
-        eval(index)
+        geval(index)
       })
     }())
   </script>

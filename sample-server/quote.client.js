@@ -19,19 +19,19 @@ document.body.innerHTML = `
 `
 
 newQuoteBtn.onclick = () => {
-  conn.send({
+  window.conn.send({
     type: 'getQuote',
     href: window.location.href
   })
 }
-conn.on('data', (payload) => {
+window.conn.on('data', (payload) => {
   if (payload.type == 'quote') {
     quote.innerText = payload.text
     author.innerText = payload.author
   }
 })
 
-conn.send({
+window.conn.send({
   type: 'getQuote',
   href: window.location.href
 })
