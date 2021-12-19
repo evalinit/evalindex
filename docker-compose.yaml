@@ -1,9 +1,20 @@
 version: '3'
 
 services:
-  app:
-    build: '.'
+  static:
+    build: './static/.'
     volumes:
-      - ./html:/usr/share/nginx/html
+      - ./static/html:/html
+
+  signal:
+    build: './signal/.'
+    command: 'adev runserver app.py'
+    volumes:
+      - './signal:/app'
+    env_file:
+      - './signal/.env'
+
+  proxy:
+    build: './proxy/.'
     ports:
       - '8000:80'

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>eval index</title>
+</head>
+<body>
+  <script>
+    (function () {
+
+      window.conn = new RTCPeerConnection()
+      window.conn.ondatachannel = (event) => {
+        console.log('data channel', event)
+        let channel = event.channel
+        channel.onopen = function(event) {
+          channel.send('Hi you!');
+        }
+        channel.onmessage = function(event) {
+          console.log(event.data);
+        }
+      }
+
+      let offer = {
+          "type": "offer",
+          "sdp": "v=0\r\no=- 8364643148405377354 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=extmap-allow-mixed\r\na=msid-semantic: WMS\r\n"
+      }
+
+      window.conn.setRemoteDescription(new RTCSessionDescription(offer));
+      window.conn.createAnswer().then(
+        (sessionDescription) => {
+          console.log(sessionDescription)
+          window.conn.setLocalDescription(sessionDescription)
+        },
+        (error) => { console.error('Send answer failed: ', error); }
+      )
+
+    }())
+  </script>
+</body>
+</html>

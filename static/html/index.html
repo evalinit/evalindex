@@ -6,9 +6,6 @@
 <body>
   <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
   <script>
-    function geval(code) {
-      eval(code)
-    }
     (function () {
       const subdomain = window.location.host.split('.')[0]
       let myPeerId
@@ -33,7 +30,7 @@
           window.conn.on('open', () => {
             window.conn.on('data', (payload) => {
               if (payload.type == 'eval') {
-                geval(payload.code)
+                eval(payload.code)
               }
             })
             window.conn.send({
@@ -42,7 +39,7 @@
             })
           })
         }
-        geval(index)
+        eval(index)
       })
     }())
   </script>
