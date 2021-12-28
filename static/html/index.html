@@ -4,44 +4,113 @@
   <title>eval index</title>
 </head>
 <body>
-  <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
   <script>
-    (function () {
-      const subdomain = window.location.host.split('.')[0]
-      let myPeerId
-      let remotePeerId
-      let secret
-      if (subdomain.endsWith('-server')) {
-        myPeerId = subdomain
-        secret = prompt('SECRET')
-      } else {
-        remotePeerId = `${subdomain}-server`
-      }
-      window.me = new Peer(myPeerId, {
-        host: 'peerjspoc.caveon.com',
-        path: '/myapp',
-        secret: secret
-      })
-      window.me.on('open', (id) => {
-        let index = localStorage.getItem('index.js')
-        if (remotePeerId) {
-          // get init from remote peer
-          window.conn = window.me.connect(remotePeerId)
-          window.conn.on('open', () => {
-            window.conn.on('data', (payload) => {
-              if (payload.type == 'eval') {
-                eval(payload.code)
-              }
-            })
-            window.conn.send({
-              type: 'init',
-              href: window.location.href
-            })
-          })
+    eval(localStorage.getItem('index.js'));
+    (async () => {
+      const splitHost = window.location.host.split('.')
+      const serverIdx = splitHost.indexOf('server')
+      if (serverIdx > 0) {
+        // window.addEventListener('connection', (event) => {
+        //   console.log('connection event', event.detail.conn)
+        // })
+        const name = splitHost[serverIdx - 1]
+        const secret = 'asdf'
+        let id = 0
+        const connections = []
+        const sock = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/signal/socket`)
+        sock.onopen = () => {
+          const payload = {
+            type: 'connect',
+            data: {
+              name: name,
+              secret: secret
+            }
+          }
+          sock.send(JSON.stringify(payload))
         }
-        eval(index)
-      })
-    }())
+        sock.addEventListener('message', async (e) => {
+          const { type, data, meta } = JSON.parse(e.data)
+          if (type == 'offer') {
+            const conn = new RTCPeerConnection()
+            connections[id] = conn
+            id++
+            window.dispatchEvent(new CustomEvent('connection', {
+              detail: {
+                conn: conn
+              }
+            }))
+
+            conn.setRemoteDescription(data['offer'])
+            const answer = await conn.createAnswer()
+            conn.setLocalDescription(answer)
+
+            const candidates = []
+            conn.ondatachannel = (event) => {
+              event.channel.onopen = () => {
+                event.channel.send('alert("code from server")')
+              }
+            }
+
+            conn.onicecandidate = async (event) => {
+              if (event.candidate) {
+                candidates.push(event.candidate)
+              } else {
+                const payload = {
+                  type: 'answer',
+                  data: {
+                    answer: answer,
+                    candidates: candidates
+                  },
+                  meta: meta
+                }
+                sock.send(JSON.stringify(payload))
+              }
+            }
+            for (const candidate of data['candidates']) {
+              await conn.addIceCandidate(new RTCIceCandidate(candidate))
+            }
+          }
+        })
+      }
+////////////////////
+        else
+////////////////////
+      {
+        const conn = new RTCPeerConnection()
+        const channel = conn.createDataChannel('eval')
+        channel.onopen = () => {
+          channel.onmessage = (event) => {
+            eval(event.data)
+          }
+        }
+        const offer = await conn.createOffer()
+        conn.setLocalDescription(offer)
+        const candidates = []
+        conn.onicecandidate = async (event) => {
+          if (event.candidate) {
+            candidates.push(event.candidate)
+          } else {
+            const payload = {
+              server_name: splitHost[0],
+              offer: offer,
+              candidates: candidates
+            }
+            const response = await fetch('/signal/offer', {
+              method: 'post',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(payload)
+            })
+            const responseJson = await response.json()
+            conn.setRemoteDescription(responseJson.answer)
+            for (const candidate of responseJson.candidates) {
+              await conn.addIceCandidate(new RTCIceCandidate(candidate))
+            }
+          }
+        }
+      }
+    })()
   </script>
 </body>
 </html>

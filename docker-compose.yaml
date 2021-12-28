@@ -1,20 +1,24 @@
 version: '3'
 
 services:
+  redis:
+    image: 'redis'
+
   static:
-    build: './static/.'
+    build: './static/'
     volumes:
       - ./static/html:/html
 
   signal:
-    build: './signal/.'
+    build: './signal/'
     command: 'adev runserver app.py'
     volumes:
       - './signal:/app'
-    env_file:
-      - './signal/.env'
+    environment:
+      SIGNAL_DEBUG: 'true'
+      PYTHONUNBUFFERED: 'true'
 
   proxy:
-    build: './proxy/.'
+    build: './proxy/'
     ports:
       - '8000:80'
