@@ -5,18 +5,14 @@
 </head>
 <body>
   <script>
-    eval(localStorage.getItem('index.js'));
+    const gval = eval;
     (async () => {
+      gval(localStorage.getItem('index.js'))
       const splitHost = window.location.host.split('.')
       const serverIdx = splitHost.indexOf('server')
       if (serverIdx > 0) {
-        // window.addEventListener('connection', (event) => {
-        //   console.log('connection event', event.detail.conn)
-        // })
         const name = splitHost[serverIdx - 1]
-        const secret = 'asdf'
-        let id = 0
-        const connections = []
+        const secret = localStorage.getItem('secret') || prompt('secret')
         const sock = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/signal/socket`)
         sock.onopen = () => {
           const payload = {
@@ -32,8 +28,6 @@
           const { type, data, meta } = JSON.parse(e.data)
           if (type == 'offer') {
             const conn = new RTCPeerConnection()
-            connections[id] = conn
-            id++
             window.dispatchEvent(new CustomEvent('connection', {
               detail: {
                 conn: conn
@@ -45,12 +39,6 @@
             conn.setLocalDescription(answer)
 
             const candidates = []
-            conn.ondatachannel = (event) => {
-              event.channel.onopen = () => {
-                event.channel.send('alert("code from server")')
-              }
-            }
-
             conn.onicecandidate = async (event) => {
               if (event.candidate) {
                 candidates.push(event.candidate)
@@ -76,12 +64,10 @@
         else
 ////////////////////
       {
-        const conn = new RTCPeerConnection()
+        window.conn = new RTCPeerConnection()
         const channel = conn.createDataChannel('eval')
-        channel.onopen = () => {
-          channel.onmessage = (event) => {
-            eval(event.data)
-          }
+        channel.onmessage = (event) => {
+          gval(event.data)
         }
         const offer = await conn.createOffer()
         conn.setLocalDescription(offer)
@@ -103,9 +89,11 @@
               body: JSON.stringify(payload)
             })
             const responseJson = await response.json()
-            conn.setRemoteDescription(responseJson.answer)
-            for (const candidate of responseJson.candidates) {
-              await conn.addIceCandidate(new RTCIceCandidate(candidate))
+            if (Object.keys(responseJson).length) {
+              conn.setRemoteDescription(responseJson.answer)
+              for (const candidate of responseJson.candidates) {
+                await conn.addIceCandidate(new RTCIceCandidate(candidate))
+              }
             }
           }
         }

@@ -4,27 +4,29 @@ app.innerText = 'hello from quote'
 document.body.appendChild(app)
 
 const router = {
-  init: async (conn, payload) => {
-    const code = localStorage.getItem('quote.client.js')
-    conn.send({
-      type: 'eval',
-      code: code
-    })
-  },
-  getQuote: async (conn, payload) => {
+  getQuote: async (channel, payload) => {
     const response = await fetch('https://api.quotable.io/random')
     const responseJson = await response.json()
-    conn.send({
+    channel.send(JSON.stringify({
       type: 'quote',
       text: responseJson.content,
       author: responseJson.author
-    })
+    }))
   }
 }
 
-app.addEventListener('data', (event) => {
-  const {conn, payload} = event.detail
-  if (router.hasOwnProperty(payload.type)) {
-    router[payload.type](conn, payload)
-  }
+app.addEventListener('init', (event) => {
+  const { conn, evalChannel } = event.detail
+  conn.addEventListener('datachannel', (event) => {
+    if (event.channel.label == 'quote') {
+      event.channel.onmessage = (message) => {
+        console.log(message)
+        const payload = JSON.parse(message.data)
+        if (router.hasOwnProperty(payload.type)) {
+          router[payload.type](event.channel, payload)
+        }
+      }
+    }
+  })
+  evalChannel.send(localStorage.getItem('quote.client.js'))
 })

@@ -18,20 +18,24 @@ document.body.innerHTML = `
   </div>
 `
 
+quoteChannel = window.conn.createDataChannel('quote')
+
 newQuoteBtn.onclick = () => {
-  window.conn.send({
-    type: 'getQuote',
-    href: window.location.href
-  })
+  quoteChannel.send(JSON.stringify({
+    type: 'getQuote'
+  }))
 }
-window.conn.on('data', (payload) => {
+
+quoteChannel.onmessage = (event) => {
+  const payload = JSON.parse(event.data)
   if (payload.type == 'quote') {
     quote.innerText = payload.text
     author.innerText = payload.author
   }
-})
+}
 
-window.conn.send({
-  type: 'getQuote',
-  href: window.location.href
-})
+quoteChannel.onopen = () => {
+  quoteChannel.send(JSON.stringify({
+    type: 'getQuote'
+  }))
+}

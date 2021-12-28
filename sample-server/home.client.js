@@ -1,2 +1,1 @@
-console.log(window)
-alert('code from home')
+alert('hello, world')
