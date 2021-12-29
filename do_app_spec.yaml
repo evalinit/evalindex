@@ -10,6 +10,12 @@ databases:
 domains:
 - domain: evalindex.com
   type: PRIMARY
+  wildcard: true
+  zone: evalindex.com
+- domain: server.evalindex.com
+  type: ALIAS
+  wildcard: true
+  zone: evalindex.com
 name: evalindex
 region: nyc
 services:
@@ -42,4 +48,3 @@ static_sites:
   routes:
   - path: /
   source_dir: static/html
-  catchall_document: index.html
