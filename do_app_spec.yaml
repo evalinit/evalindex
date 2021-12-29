@@ -42,3 +42,4 @@ static_sites:
   routes:
   - path: /
   source_dir: static/html
+  catchall_document: index.html
