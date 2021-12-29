@@ -29,12 +29,7 @@ servers = {}
 routes = web.RouteTableDef()
 
 
-@routes.get('/signal')
-async def health_check(request):
-    return web.Response(text='')
-
-
-@routes.post('/signal/offer')
+@routes.post('/offer')
 async def offer(request):
     request_data = await request.json()
 
@@ -81,7 +76,7 @@ async def offer(request):
     return web.json_response(response_payload)
 
 
-@routes.get('/signal/socket')
+@routes.get('/socket')
 async def socket(request):
     ws = web.WebSocketResponse()
     ws.is_authenticated = False
