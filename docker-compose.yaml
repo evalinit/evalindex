@@ -15,7 +15,7 @@ services:
     volumes:
       - './signal:/app'
     environment:
-      SIGNAL_DEBUG: 'true'
+      DEBUG: 'true'
       PYTHONUNBUFFERED: 'true'
       HASH_URL: 'https://raw.githubusercontent.com/evalinit/evalindex/master/hashes/'
 

@@ -8,9 +8,9 @@ from aiohttp import web, WSMsgType, ClientSession
 
 
 config = {
-    'debug': json.loads(os.environ.get('SIGNAL_DEBUG', 'false')),
-    'redis_url': os.environ.get('SIGNAL_REDIS_URL', 'redis://redis:6379'),
-    'redis_max_connections': json.loads(os.environ.get('SIGNAL_REDIS_POOLSIZE', '10')),
+    'debug': json.loads(os.environ.get('DEBUG', 'false')),
+    'redis_url': os.environ.get('REDIS_URL', 'redis://redis:6379'),
+    'redis_max_connections': json.loads(os.environ.get('REDIS_POOLSIZE', '10')),
     'hash_url': os.environ['HASH_URL']
 }
 
