@@ -1,15 +1,17 @@
 import os
 import json
+from hashlib import sha512
 from uuid import uuid4
 
 import aioredis
-from aiohttp import web, WSMsgType
+from aiohttp import web, WSMsgType, ClientSession
 
 
 config = {
     'debug': json.loads(os.environ.get('SIGNAL_DEBUG', 'false')),
     'redis_url': os.environ.get('SIGNAL_REDIS_URL', 'redis://redis:6379'),
-    'redis_max_connections': json.loads(os.environ.get('SIGNAL_REDIS_POOLSIZE', '10'))
+    'redis_max_connections': json.loads(os.environ.get('SIGNAL_REDIS_POOLSIZE', '10')),
+    'hash_url': os.environ['HASH_URL']
 }
 
 
@@ -99,18 +101,21 @@ async def socket(request):
                 break
 
             if type == 'connect':
-                if data['secret'] == 'asdf':
-                    ws.is_authenticated = True
-                    ws.server_name = data['name']
-                    try:
-                        servers[data['name']][socket_id] = ws
-                    except KeyError:
-                        servers[data['name']] = {socket_id: ws}
+                async with ClientSession() as session:
+                    async with session.get(config['HASH_URL'] + data['name']) as resp:
+                        hash = await resp.text()
+                        if sha512(data['secret'].encode()).hexdigest() == hash:
+                            ws.is_authenticated = True
+                            ws.server_name = data['name']
+                            try:
+                                servers[data['name']][socket_id] = ws
+                            except KeyError:
+                                servers[data['name']] = {socket_id: ws}
 
-                    payload = {
-                        'type': 'connected'
-                    }
-                    await ws.send_str(json.dumps(payload))
+                            payload = {
+                                'type': 'connected'
+                            }
+                            await ws.send_str(json.dumps(payload))
 
             if not ws.is_authenticated:
                 await ws.close()

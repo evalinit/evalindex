@@ -17,6 +17,7 @@ services:
     environment:
       SIGNAL_DEBUG: 'true'
       PYTHONUNBUFFERED: 'true'
+      HASH_URL: 'https://github.com/evalinit/evalindex/master/hashes/'
 
   proxy:
     build: './proxy/'
