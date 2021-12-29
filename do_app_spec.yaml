@@ -25,7 +25,7 @@ services:
     branch: master
     deploy_on_push: true
     repo: evalinit/evalindex
-  http_port: 9999
+  http_port: 8080
   instance_count: 1
   instance_size_slug: basic-xxs
   name: signal

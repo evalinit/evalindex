@@ -11,7 +11,7 @@ services:
 
   signal:
     build: './signal/'
-    command: 'adev runserver app.py'
+    command: 'adev runserver app.py --port 8080'
     volumes:
       - './signal:/app'
     environment:
