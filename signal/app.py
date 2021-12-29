@@ -29,6 +29,11 @@ servers = {}
 routes = web.RouteTableDef()
 
 
+@routes.get('/signal')
+async def health_check(request):
+    return web.Response(text='')
+
+
 @routes.post('/signal/offer')
 async def offer(request):
     request_data = await request.json()

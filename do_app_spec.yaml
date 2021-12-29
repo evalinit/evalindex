@@ -1,0 +1,44 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+databases:
+- cluster_name: db-redis-sfo3-81335
+  engine: REDIS
+  name: db-redis-sfo3-81335
+  production: true
+  version: "6"
+domains:
+- domain: evalindex.com
+  type: PRIMARY
+name: evalindex
+region: nyc
+services:
+- dockerfile_path: signal/Dockerfile
+  envs:
+  - key: REDIS_URL
+    scope: RUN_TIME
+    value: ${db-redis-sfo3-81335.DATABASE_URL}
+  - key: HASH_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://raw.githubusercontent.com/evalinit/evalindex/master/hashes/
+  github:
+    branch: master
+    deploy_on_push: true
+    repo: evalinit/evalindex
+  http_port: 9999
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  name: signal
+  routes:
+  - path: /signal
+  source_dir: signal
+static_sites:
+- environment_slug: html
+  github:
+    branch: master
+    deploy_on_push: true
+    repo: evalinit/evalindex
+  name: evalindex
+  routes:
+  - path: /
+  source_dir: static/html
