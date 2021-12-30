@@ -93,7 +93,7 @@ async def socket(request):
                 async with ClientSession() as session:
                     async with session.get(config['hash_url'] + data['name']) as resp:
                         hash = await resp.text()
-                        if sha512(data['secret'].encode()).hexdigest() == hash.strip() or config['debug']:
+                        if sha512(data['secret'].encode()).hexdigest() == hash.strip().lower() or config['debug']:
                             ws.is_authenticated = True
                             ws.server_name = data['name']
                             try:
