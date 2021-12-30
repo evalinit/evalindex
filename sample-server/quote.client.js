@@ -4,6 +4,8 @@ const style = document.createElement('style')
 
 style.innerText = `
   #app {
+    margin: 30px;
+    padding: 30px;
     background-color: black;
     color: white;
   }
