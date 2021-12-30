@@ -49,7 +49,7 @@ async def offer(request):
         }
         for ws in server_sockets.values():
             try:
-                await ws.send_str(json.dumps(offer_payload))
+                await ws.send_json(offer_payload)
             except Exception:
                 pass
 
@@ -70,7 +70,7 @@ async def offer(request):
 
 @routes.get('/socket')
 async def socket(request):
-    ws = web.WebSocketResponse()
+    ws = web.WebSocketResponse(heartbeat=30)
     ws.is_authenticated = False
     ws.server_name = ''
     await ws.prepare(request)
@@ -85,18 +85,15 @@ async def socket(request):
                 data = parsed['data']
                 meta = parsed.get('meta')
             except Exception:
-                await ws.close()
-                break
-
-            if type == 'close':
-                await ws.close()
-                break
+                if msg.data == 'close':
+                    await ws.close()
+                continue
 
             if type == 'connect':
                 async with ClientSession() as session:
                     async with session.get(config['hash_url'] + data['name']) as resp:
                         hash = await resp.text()
-                        if sha512(data['secret'].encode()).hexdigest() == hash.strip() or config['debug']:
+                        if sha512(data['secret'].encode()).hexdigest() == hash.strip():
                             ws.is_authenticated = True
                             ws.server_name = data['name']
                             try:
@@ -107,7 +104,7 @@ async def socket(request):
                             payload = {
                                 'type': 'connected'
                             }
-                            await ws.send_str(json.dumps(payload))
+                            await ws.send_json(payload)
 
             if not ws.is_authenticated:
                 await ws.close()
