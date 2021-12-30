@@ -39,7 +39,8 @@ services:
   - path: /signal
   source_dir: signal
 static_sites:
-- environment_slug: html
+- catchall_document: index.html
+  environment_slug: html
   github:
     branch: master
     deploy_on_push: true

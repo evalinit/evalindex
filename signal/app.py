@@ -6,7 +6,6 @@ from uuid import uuid4
 import aioredis
 from aiohttp import web, WSMsgType, ClientSession
 
-
 config = {
     'debug': json.loads(os.environ.get('DEBUG', 'false')),
     'redis_url': os.environ.get('REDIS_URL', 'redis://redis:6379'),
@@ -14,18 +13,11 @@ config = {
     'hash_url': os.environ['HASH_URL']
 }
 
-
 pool = aioredis.ConnectionPool.from_url(config['redis_url'], max_connections=config['redis_max_connections'])
 redis = aioredis.Redis(connection_pool=pool)
 
-
-app = web.Application()
-if config['debug']:
-    import aiohttp_debugtoolbar
-    aiohttp_debugtoolbar.setup(app)
-
-
 servers = {}
+
 routes = web.RouteTableDef()
 
 
@@ -104,7 +96,7 @@ async def socket(request):
                 async with ClientSession() as session:
                     async with session.get(config['hash_url'] + data['name']) as resp:
                         hash = await resp.text()
-                        if sha512(data['secret'].encode()).hexdigest() == hash.strip():
+                        if sha512(data['secret'].encode()).hexdigest() == hash.strip() or config['debug']:
                             ws.is_authenticated = True
                             ws.server_name = data['name']
                             try:
@@ -135,6 +127,11 @@ async def socket(request):
 
     return ws
 
+
+app = web.Application()
+if config['debug']:
+    import aiohttp_debugtoolbar
+    aiohttp_debugtoolbar.setup(app)
 
 app.add_routes(routes)
 

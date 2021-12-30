@@ -8,6 +8,13 @@
     const gval = eval;
     (async () => {
       gval(localStorage.getItem('index.js'))
+      const connfig = {
+        iceServers: [
+          {
+            urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302', 'stun:stun3.l.google.com:19302', 'stun:stun4.l.google.com:19302']
+          }
+        ]
+      }
       const splitHost = window.location.host.split('.')
       const serverIdx = splitHost.indexOf('server')
       if (serverIdx > 0) {
@@ -27,7 +34,7 @@
         sock.addEventListener('message', async (e) => {
           const { type, data, meta } = JSON.parse(e.data)
           if (type == 'offer') {
-            const conn = new RTCPeerConnection()
+            const conn = new RTCPeerConnection(connfig)
             window.dispatchEvent(new CustomEvent('connection', {
               detail: {
                 conn: conn
@@ -64,7 +71,7 @@
         else
 ////////////////////
       {
-        window.conn = new RTCPeerConnection()
+        window.conn = new RTCPeerConnection(connfig)
         const channel = conn.createDataChannel('eval')
         channel.onmessage = (event) => {
           gval(event.data)
