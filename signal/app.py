@@ -33,7 +33,7 @@ async def offer(request):
 
     response_payload = {}
 
-    server_name = request_data.get('server_name') or 'www'
+    server_name = request_data.get('server_name')
     server_sockets = servers.get(server_name)
     if server_sockets:
         queue_key = str(uuid4())
@@ -71,8 +71,8 @@ async def offer(request):
 @routes.get('/socket')
 async def socket(request):
     ws = web.WebSocketResponse(heartbeat=30)
-    ws.is_authenticated = False
-    ws.server_name = ''
+    is_authenticated = False
+    server_name = ''
     await ws.prepare(request)
 
     socket_id = str(uuid4())
@@ -94,8 +94,8 @@ async def socket(request):
                     async with session.get(config['hash_url'] + data['name']) as resp:
                         hash = await resp.text()
                         if sha512(data['secret'].encode()).hexdigest() == hash.strip().lower() or config['debug']:
-                            ws.is_authenticated = True
-                            ws.server_name = data['name']
+                            is_authenticated = True
+                            server_name = data['name']
                             try:
                                 servers[data['name']][socket_id] = ws
                             except KeyError:
@@ -106,7 +106,7 @@ async def socket(request):
                             }
                             await ws.send_json(payload)
 
-            if not ws.is_authenticated:
+            if not is_authenticated:
                 await ws.close()
                 break
 
@@ -118,7 +118,7 @@ async def socket(request):
                 await redis.rpush(meta['queue_key'], json.dumps(queue_payload))
 
     try:
-        servers[ws.server_name].pop(socket_id)
+        servers[server_name].pop(socket_id)
     except KeyError:
         pass
 

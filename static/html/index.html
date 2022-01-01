@@ -17,8 +17,9 @@
       }
       const splitHost = window.location.host.split('.')
       const serverIdx = splitHost.indexOf('server')
+      let name
       if (serverIdx > 0) {
-        const name = splitHost[serverIdx - 1]
+        name = splitHost[0]
         const secret = localStorage.getItem('secret') || prompt('secret')
         const sock = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/signal/socket`)
         sock.onopen = () => {
@@ -71,6 +72,7 @@
         else
 ////////////////////
       {
+        name = splitHost[splitHost.length - 2] || 'www'
         window.conn = new RTCPeerConnection(connfig)
         const channel = conn.createDataChannel('eval')
         channel.onmessage = (event) => {
@@ -84,7 +86,7 @@
             candidates.push(event.candidate)
           } else {
             const payload = {
-              server_name: splitHost[0],
+              server_name: name,
               offer: offer,
               candidates: candidates
             }
