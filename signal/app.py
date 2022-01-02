@@ -1,76 +1,103 @@
-import os
+import async_timeout
+import asyncio
 import json
+import os
 from hashlib import sha512
 from uuid import uuid4
 
 import aioredis
 from aiohttp import web, WSMsgType, ClientSession
 
-config = {
-    'debug': json.loads(os.environ.get('DEBUG', 'false')),
-    'redis_url': os.environ.get('REDIS_URL', 'redis://redis:6379'),
-    'redis_max_connections': json.loads(os.environ.get('REDIS_POOLSIZE', '10')),
-    'hash_url': os.environ['HASH_URL']
-}
 
-pool = aioredis.ConnectionPool.from_url(config['redis_url'], max_connections=config['redis_max_connections'])
-redis = aioredis.Redis(connection_pool=pool)
+async def create_app():
+    app = web.Application()
+    app['config'] = {
+        'debug': json.loads(os.environ.get('DEBUG', 'false')),
+        'redis_url': os.environ.get('REDIS_URL', 'redis://redis:6379'),
+        'redis_max_connections': json.loads(os.environ.get('REDIS_POOLSIZE', '10')),
+        'hash_url': os.environ['HASH_URL'],
+        'queue_depth': json.loads(os.environ.get('QUEUE_DEPTH', '12'))
+    }
 
-servers = {}
+    app.add_routes([
+        web.post('/offer', offer),
+        web.get('/socket', socket)
+    ])
 
-routes = web.RouteTableDef()
+    if app['config']['debug']:
+        import aiohttp_debugtoolbar
+        aiohttp_debugtoolbar.setup(app)
+
+    app['servers'] = {}
+
+    app['redis'] = aioredis.Redis.from_url(app['config']['redis_url'], max_connections=app['config']['redis_max_connections'])
+
+    async def startup(app):
+        def distribute_offer(message):
+            data = json.loads(message['data'])
+            server_sockets = app['servers'].get(data['server_name'])
+            if server_sockets:
+                for ws in server_sockets.values():
+                    try:
+                        asyncio.ensure_future(ws.send_json(data['offer']))
+                    except Exception:
+                        pass
+
+        pubsub = app['redis'].pubsub()
+        await pubsub.subscribe(offers=distribute_offer)
+
+        app['redis_listener'] = asyncio.create_task(pubsub.run())
+
+    async def shutdown(app):
+        app['redis_listener'].cancel()
+        await app['redis_listener']
+        await app['redis'].close()
+
+    app.on_startup.append(startup)
+    app.on_shutdown.append(shutdown)
+
+    return app
 
 
-@routes.post('/offer')
 async def offer(request):
     request_data = await request.json()
 
-    offer = request_data.get('offer')
-    candidates = request_data.get('candidates', [])
+    temp_queue_key = str(uuid4())
+    offer_payload = {
+        'type': 'offer',
+        'data': {
+            'offer': request_data['offer'],
+            'candidates': request_data['candidates']
+        },
+        'meta': {
+            'temp_queue_key': temp_queue_key
+        }
+    }
+    redis_payload = {
+        'server_name': request_data['server_name'],
+        'offer': offer_payload
+    }
 
-    if not all((offer, candidates)):
-        raise Exception()
+    await request.app['redis'].publish('offers', json.dumps(redis_payload))
+
+    try:
+        server_data = await request.app['redis'].blpop(temp_queue_key, timeout=5)
+    except TimeoutError:
+        server_data = None
+    finally:
+        await request.app['redis'].expire(temp_queue_key, 5)
 
     response_payload = {}
-
-    server_name = request_data.get('server_name')
-    server_sockets = servers.get(server_name)
-    if server_sockets:
-        queue_key = str(uuid4())
-        offer_payload = {
-            'type': 'offer',
-            'data': {
-                'offer': offer,
-                'candidates': candidates
-            },
-            'meta': {
-                'queue_key': queue_key
-            }
-        }
-        for ws in server_sockets.values():
-            try:
-                await ws.send_json(offer_payload)
-            except Exception:
-                pass
-
-        try:
-            server_data = await redis.blpop(queue_key, timeout=5)
-        except TimeoutError:
-            server_data = None
-        finally:
-            await redis.expire(queue_key, 5)
-
-        if server_data:
-            server_data = json.loads(server_data[1].decode('utf-8'))
-            response_payload['answer'] = server_data['answer']
-            response_payload['candidates'] = server_data['candidates']
+    if server_data:
+        server_data = json.loads(server_data[1].decode('utf-8'))
+        response_payload['answer'] = server_data['answer']
+        response_payload['candidates'] = server_data['candidates']
 
     return web.json_response(response_payload)
 
 
-@routes.get('/socket')
 async def socket(request):
-    ws = web.WebSocketResponse(heartbeat=30)
+    ws = web.WebSocketResponse(heartbeat=10)
     is_authenticated = False
     server_name = ''
     await ws.prepare(request)
@@ -91,15 +118,15 @@ async def socket(request):
 
             if type == 'connect':
                 async with ClientSession() as session:
-                    async with session.get(config['hash_url'] + data['name']) as resp:
+                    async with session.get(request.app['config']['hash_url'] + data['name']) as resp:
                         hash = await resp.text()
-                        if sha512(data['secret'].encode()).hexdigest() == hash.strip().lower() or config['debug']:
+                        if sha512(data['secret'].encode()).hexdigest() == hash.strip().lower() or request.app['config']['debug']:
                             is_authenticated = True
                             server_name = data['name']
                             try:
-                                servers[data['name']][socket_id] = ws
+                                request.app['servers'][data['name']][socket_id] = ws
                             except KeyError:
-                                servers[data['name']] = {socket_id: ws}
+                                request.app['servers'][data['name']] = {socket_id: ws}
 
                             payload = {
                                 'type': 'connected'
@@ -115,23 +142,15 @@ async def socket(request):
                     'answer': data['answer'],
                     'candidates': data['candidates']
                 }
-                await redis.rpush(meta['queue_key'], json.dumps(queue_payload))
+                await request.app['redis'].rpush(meta['temp_queue_key'], json.dumps(queue_payload))
 
     try:
-        servers[server_name].pop(socket_id)
+        request.app['servers'][server_name].pop(socket_id)
     except KeyError:
         pass
 
     return ws
 
 
-app = web.Application()
-if config['debug']:
-    import aiohttp_debugtoolbar
-    aiohttp_debugtoolbar.setup(app)
-
-app.add_routes(routes)
-
-
 if __name__ == '__main__':
-    web.run_app(app)
+    web.run_app(create_app())
