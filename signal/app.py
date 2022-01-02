@@ -1,4 +1,3 @@
-import async_timeout
 import asyncio
 import json
 import os
