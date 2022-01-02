@@ -13,10 +13,7 @@ Servers can listen for the connection/datachannel events to ensure the eval chan
 ```
 window.addEventListener('connection', (event) => {
   const { conn } = event.detail
-  console.log(conn)
-
   conn.addEventListener('datachannel', (event) => {
-    console.log(event)
     switch (event.channel.label) {
       case 'eval':
         event.channel.addEventListener('open', () => {
