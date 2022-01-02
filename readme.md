@@ -15,7 +15,6 @@ window.addEventListener('connection', (event) => {
   const { conn } = event.detail
   console.log(conn)
 
-  let evalChannel
   conn.addEventListener('datachannel', (event) => {
     console.log(event)
     switch (event.channel.label) {
