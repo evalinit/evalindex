@@ -102,7 +102,7 @@ async def offer(request):
 
 
 async def socket(request):
-    ws = web.WebSocketResponse(heartbeat=10)
+    ws = web.WebSocketResponse(heartbeat=20)
     is_authenticated = False
     server_name = ''
     await ws.prepare(request)

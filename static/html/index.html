@@ -20,52 +20,67 @@
       const name = splitHost[0]
       if (serverIdx > 0) {
         const secret = localStorage.getItem('secret') || prompt('secret')
-        const sock = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/signal/socket`)
-        sock.onopen = () => {
-          const payload = {
-            type: 'connect',
-            data: {
-              name: name,
-              secret: secret
-            }
+        let sock
+        createSocket()
+        function createSocket () {
+          if (sock) return
+          sock = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/signal/socket`)
+          sock.onclose = () => {
+            sock = null
           }
-          sock.send(JSON.stringify(payload))
-        }
-        sock.addEventListener('message', async (e) => {
-          const { type, data, meta } = JSON.parse(e.data)
-          if (type == 'offer') {
-            const conn = new RTCPeerConnection(connfig)
-            window.dispatchEvent(new CustomEvent('connection', {
-              detail: {
-                conn: conn
+          sock.onopen = () => {
+            const payload = {
+              type: 'connect',
+              data: {
+                name: name,
+                secret: secret
               }
-            }))
+            }
+            sock.send(JSON.stringify(payload))
+          }
 
-            conn.setRemoteDescription(data['offer'])
-            const answer = await conn.createAnswer()
-            conn.setLocalDescription(answer)
+          sock.addEventListener('message', async (e) => {
+            const { type, data, meta } = JSON.parse(e.data)
+            switch (type) {
+              case 'connected':
+                setInterval(createSocket, 1000)
+                break
+              case 'offer':
+                const conn = new RTCPeerConnection(connfig)
+                window.dispatchEvent(new CustomEvent('connection', {
+                  detail: {
+                    conn: conn
+                  }
+                }))
 
-            const candidates = []
-            conn.onicecandidate = async (event) => {
-              if (event.candidate) {
-                candidates.push(event.candidate)
-              } else {
-                const payload = {
-                  type: 'answer',
-                  data: {
-                    answer: answer,
-                    candidates: candidates
-                  },
-                  meta: meta
+                conn.setRemoteDescription(data['offer'])
+                const answer = await conn.createAnswer()
+                conn.setLocalDescription(answer)
+
+                const candidates = []
+                conn.onicecandidate = async (event) => {
+                  if (event.candidate) {
+                    candidates.push(event.candidate)
+                  } else {
+                    const payload = {
+                      type: 'answer',
+                      data: {
+                        answer: answer,
+                        candidates: candidates
+                      },
+                      meta: meta
+                    }
+                    sock.send(JSON.stringify(payload))
+                  }
                 }
-                sock.send(JSON.stringify(payload))
-              }
+                for (const candidate of data['candidates']) {
+                  await conn.addIceCandidate(new RTCIceCandidate(candidate))
+                }
+                break
             }
-            for (const candidate of data['candidates']) {
-              await conn.addIceCandidate(new RTCIceCandidate(candidate))
-            }
-          }
-        })
+          })
+        }
+
       }
 ////////////////////
         else
