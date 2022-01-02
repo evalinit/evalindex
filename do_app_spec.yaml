@@ -23,7 +23,7 @@ services:
   envs:
   - key: REDIS_URL
     scope: RUN_TIME
-    value: ${db-redis-sfo3-81335.DATABASE_URL}
+    value: redis://redis:6379
   - key: HASH_URL
     scope: RUN_AND_BUILD_TIME
     value: https://raw.githubusercontent.com/evalinit/evalindex/master/hashes/
@@ -38,6 +38,21 @@ services:
   routes:
   - path: /signal
   source_dir: signal
+- envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${db-redis-sfo3-81335.DATABASE_URL}
+  image:
+    registry: library
+    registry_type: DOCKER_HUB
+    repository: redis
+    tag: latest
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  internal_ports:
+  - 6379
+  name: redis
+  source_dir: /
 static_sites:
 - catchall_document: index.html
   environment_slug: html

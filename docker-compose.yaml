@@ -18,8 +18,13 @@ services:
       DEBUG: 'true'
       PYTHONUNBUFFERED: 'true'
       HASH_URL: 'https://raw.githubusercontent.com/evalinit/evalindex/master/hashes/'
+      DOMAIN: 'localhost:8000'
+    depends_on:
+      - redis
 
   proxy:
     build: './proxy/'
     ports:
       - '8000:80'
+    depends_on:
+      - signal

@@ -16,7 +16,7 @@ async def create_app():
         'redis_url': os.environ.get('REDIS_URL', 'redis://redis:6379'),
         'redis_max_connections': json.loads(os.environ.get('REDIS_POOLSIZE', '10')),
         'hash_url': os.environ['HASH_URL'],
-        'queue_depth': json.loads(os.environ.get('QUEUE_DEPTH', '12'))
+        'domain': os.environ['DOMAIN']
     }
 
     app.add_routes([
@@ -73,8 +73,13 @@ async def offer(request):
             'temp_queue_key': temp_queue_key
         }
     }
+
+    server_name = request_data['server_name']
+    if server_name.lower() == request.app['config']['domain']:
+        server_name = 'www'
+
     redis_payload = {
-        'server_name': request_data['server_name'],
+        'server_name': server_name,
         'offer': offer_payload
     }
 
@@ -124,9 +129,9 @@ async def socket(request):
                             is_authenticated = True
                             server_name = data['name']
                             try:
-                                request.app['servers'][data['name']][socket_id] = ws
+                                request.app['servers'][server_name][socket_id] = ws
                             except KeyError:
-                                request.app['servers'][data['name']] = {socket_id: ws}
+                                request.app['servers'][server_name] = {socket_id: ws}
 
                             payload = {
                                 'type': 'connected'
