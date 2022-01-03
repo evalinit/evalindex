@@ -13,14 +13,16 @@ async def create_app():
     app['config'] = {
         'debug': json.loads(os.environ.get('DEBUG', 'false')),
         'redis_url': os.environ.get('REDIS_URL', 'redis://redis:6379'),
-        'redis_max_connections': json.loads(os.environ.get('REDIS_POOLSIZE', '10')),
+        'redis_poolsize': json.loads(os.environ.get('REDIS_POOLSIZE', '10')),
         'hash_url': os.environ['HASH_URL'],
         'domain': os.environ['DOMAIN']
     }
 
     app.add_routes([
         web.post('/offer', offer),
-        web.get('/socket', socket)
+        web.get('/socket', socket),
+        web.get('/hook/{server_name}', hook),
+        web.post('/hook/{server_name}', hook)
     ])
 
     if app['config']['debug']:
@@ -29,10 +31,10 @@ async def create_app():
 
     app['servers'] = {}
 
-    app['redis'] = aioredis.Redis.from_url(app['config']['redis_url'], max_connections=app['config']['redis_max_connections'])
+    app['redis'] = aioredis.Redis.from_url(app['config']['redis_url'], max_connections=app['config']['redis_poolsize'])
 
     async def startup(app):
-        def distribute_offer(message):
+        def send_offer(message):
             data = json.loads(message['data'])
             server_sockets = app['servers'].get(data['server_name'])
             if server_sockets:
@@ -42,8 +44,18 @@ async def create_app():
                     except Exception:
                         pass
 
+        def send_hook(message):
+            data = json.loads(message['data'])
+            server_sockets = app['servers'].get(data['server_name'])
+            if server_sockets:
+                for ws in server_sockets.values():
+                    try:
+                        asyncio.ensure_future(ws.send_json(data['hook']))
+                    except Exception:
+                        pass
+
         pubsub = app['redis'].pubsub()
-        await pubsub.subscribe(offers=distribute_offer)
+        await pubsub.subscribe(offers=send_offer, hooks=send_hook)
 
         app['redis_listener'] = asyncio.create_task(pubsub.run())
 
@@ -154,6 +166,27 @@ async def socket(request):
         pass
 
     return ws
+
+
+async def hook(request):
+    print('hook listener', request)
+    data = {
+        'headers': dict(request.headers),
+        'query': dict(request.query)
+    }
+    if request.method == 'POST':
+        data['json'] = await request.json()
+    hook_payload = {
+        'type': 'hook',
+        'data': data
+    }
+    server_name = request.match_info['server_name']
+    redis_payload = {
+        'server_name': server_name,
+        'hook': hook_payload
+    }
+    await request.app['redis'].publish('hooks', json.dumps(redis_payload))
+    return web.Response()
 
 
 if __name__ == '__main__':

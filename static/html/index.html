@@ -78,6 +78,12 @@
                   await conn.addIceCandidate(new RTCIceCandidate(candidate))
                 }
                 break
+              case 'hook':
+                console.log('heard hook here', data)
+                window.dispatchEvent(new CustomEvent('hook', {
+                  detail: data
+                }))
+                break
             }
           })
         }
