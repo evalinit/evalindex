@@ -45,7 +45,7 @@
                 setInterval(createSocket, 1000)
                 break
               case 'offer':
-                if (JSON.parse(localStorage.getItem('hold'))) break
+                if (window.hold) break
                 const conn = new RTCPeerConnection(connfig)
                 window.dispatchEvent(new CustomEvent('connection', {
                   detail: {
