@@ -38,7 +38,6 @@
             }
             sock.send(JSON.stringify(payload))
           }
-
           sock.addEventListener('message', async (e) => {
             const { type, data, meta } = JSON.parse(e.data)
             switch (type) {
@@ -53,11 +52,9 @@
                     conn: conn
                   }
                 }))
-
                 conn.setRemoteDescription(data['offer'])
                 const answer = await conn.createAnswer()
                 conn.setLocalDescription(answer)
-
                 const candidates = []
                 conn.onicecandidate = async (event) => {
                   if (event.candidate) {
@@ -87,7 +84,6 @@
             }
           })
         }
-
       }
 ////////////////////
         else
