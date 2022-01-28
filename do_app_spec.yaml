@@ -35,11 +35,7 @@ services:
   routes:
   - path: /signal
   source_dir: signal
-- envs:
-  - key: DATABASE_URL
-    scope: RUN_TIME
-    value: ${db-redis-sfo3-81335.DATABASE_URL}
-  image:
+- image:
     registry: library
     registry_type: DOCKER_HUB
     repository: redis

@@ -76,7 +76,6 @@
                 }
                 break
               case 'hook':
-                console.log('heard hook here', data)
                 window.dispatchEvent(new CustomEvent('hook', {
                   detail: data
                 }))
@@ -89,7 +88,7 @@
         else
 ////////////////////
       {
-        window.conn = new RTCPeerConnection(connfig)
+        const conn = new RTCPeerConnection(connfig)
         const channel = conn.createDataChannel('eval')
         channel.onmessage = (event) => {
           gval(event.data)

@@ -169,7 +169,6 @@ async def socket(request):
 
 
 async def hook(request):
-    print('hook listener', request)
     data = {
         'headers': dict(request.headers),
         'query': dict(request.query)
