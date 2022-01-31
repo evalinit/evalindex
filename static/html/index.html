@@ -88,7 +88,7 @@
         else
 ////////////////////
       {
-        const conn = new RTCPeerConnection(connfig)
+        window.conn = new RTCPeerConnection(connfig)
         const channel = conn.createDataChannel('eval')
         channel.onmessage = (event) => {
           gval(event.data)
