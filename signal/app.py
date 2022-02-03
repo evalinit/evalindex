@@ -20,9 +20,7 @@ async def create_app():
 
     app.add_routes([
         web.post('/offer', offer),
-        web.get('/socket', socket),
-        web.get('/hook/{server_name}', hook),
-        web.post('/hook/{server_name}', hook)
+        web.get('/socket', socket)
     ])
 
     if app['config']['debug']:
@@ -44,18 +42,8 @@ async def create_app():
                     except Exception:
                         pass
 
-        def send_hook(message):
-            data = json.loads(message['data'])
-            server_sockets = app['servers'].get(data['server_name'])
-            if server_sockets:
-                for ws in server_sockets.values():
-                    try:
-                        asyncio.ensure_future(ws.send_json(data['hook']))
-                    except Exception:
-                        pass
-
         pubsub = app['redis'].pubsub()
-        await pubsub.subscribe(offers=send_offer, hooks=send_hook)
+        await pubsub.subscribe(offers=send_offer)
 
         app['redis_listener'] = asyncio.create_task(pubsub.run())
 
@@ -134,7 +122,7 @@ async def socket(request):
 
             if type == 'connect':
                 async with ClientSession() as session:
-                    async with session.get(request.app['config']['hash_url'] + data['name']) as resp:
+                    async with session.get(request.app['config']['hash_url'] + data['name'].split('-')[0]) as resp:
                         hash = await resp.text()
                         if sha512(data['secret'].encode()).hexdigest() == hash.strip().lower() or request.app['config']['debug']:
                             is_authenticated = True
@@ -166,26 +154,6 @@ async def socket(request):
         pass
 
     return ws
-
-
-async def hook(request):
-    data = {
-        'headers': dict(request.headers),
-        'query': dict(request.query)
-    }
-    if request.method == 'POST':
-        data['json'] = await request.json()
-    hook_payload = {
-        'type': 'hook',
-        'data': data
-    }
-    server_name = request.match_info['server_name']
-    redis_payload = {
-        'server_name': server_name,
-        'hook': hook_payload
-    }
-    await request.app['redis'].publish('hooks', json.dumps(redis_payload))
-    return web.Response()
 
 
 if __name__ == '__main__':
