@@ -39,6 +39,7 @@ async def create_app():
                 for ws in server_sockets.values():
                     try:
                         asyncio.ensure_future(ws.send_json(data['offer']))
+                        break
                     except Exception:
                         pass
 
