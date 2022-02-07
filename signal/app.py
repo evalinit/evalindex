@@ -41,7 +41,7 @@ async def create_app():
                         asyncio.ensure_future(ws.send_json(data['offer']))
                         break
                     except Exception:
-                        pass
+                        continue
 
         pubsub = app['redis'].pubsub()
         await pubsub.subscribe(offers=send_offer)
