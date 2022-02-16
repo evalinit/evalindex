@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 from hashlib import sha512
+from random import shuffle
 from uuid import uuid4
 
 import aioredis
@@ -34,15 +35,15 @@ async def create_app():
     async def startup(app):
         async def send_offer(message):
             data = json.loads(message['data'])
-            server_sockets = app['servers'].get(data['server_name'])
-            if server_sockets:
-                for ws in server_sockets.values():
-                    try:
-                        await ws.send_json(data['offer'])
-                        break
-                    except Exception as e:
-                        print(e)
-                        await ws.close()
+            server_sockets = list(app['servers'].get(data['server_name'], {}).values())
+            shuffle(server_sockets)
+            for ws in server_sockets:
+                try:
+                    await ws.send_json(data['offer'])
+                    break
+                except Exception as e:
+                    print(e)
+                    await ws.close()
 
         def send_offer_sync(message):
             asyncio.ensure_future(send_offer(message))
