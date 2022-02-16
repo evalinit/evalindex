@@ -24,7 +24,7 @@ window.addEventListener('connection', (event) => {
   })
 })
 ```
-Pull requests for [namespaces](/hashes) are more than welcome, but you can try it out locally
+Pull requests for [namespaces](https://github.com/evalinit/servers/tree/main/hashes) are more than welcome, but you can try it out locally
 
 1. docker-compose up
 2. open example.server.localhost:8000
