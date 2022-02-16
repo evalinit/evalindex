@@ -32,19 +32,23 @@ async def create_app():
     app['redis'] = aioredis.Redis.from_url(app['config']['redis_url'], max_connections=app['config']['redis_poolsize'])
 
     async def startup(app):
-        def send_offer(message):
+        async def send_offer(message):
             data = json.loads(message['data'])
             server_sockets = app['servers'].get(data['server_name'])
             if server_sockets:
                 for ws in server_sockets.values():
                     try:
-                        asyncio.ensure_future(ws.send_json(data['offer']))
+                        await ws.send_json(data['offer'])
                         break
-                    except Exception:
-                        continue
+                    except Exception as e:
+                        print(e)
+                        await ws.close()
+
+        def send_offer_sync(message):
+            asyncio.ensure_future(send_offer(message))
 
         pubsub = app['redis'].pubsub()
-        await pubsub.subscribe(offers=send_offer)
+        await pubsub.subscribe(offers=send_offer_sync)
 
         app['redis_listener'] = asyncio.create_task(pubsub.run())
 
