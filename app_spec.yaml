@@ -1,0 +1,56 @@
+domains:
+- domain: evalindex.com
+  type: PRIMARY
+  wildcard: true
+  zone: evalindex.com
+- domain: server.evalindex.com
+  type: ALIAS
+  wildcard: true
+  zone: evalindex.com
+name: evalindex
+region: nyc
+services:
+- dockerfile_path: signal/Dockerfile
+  envs:
+  - key: HASH_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://raw.githubusercontent.com/evalinit/servers/main/hashes/
+  - key: DOMAIN
+    scope: RUN_AND_BUILD_TIME
+    value: evalindex
+  - key: REDIS_URL
+    scope: RUN_TIME
+    value: ${db-redis-nyc3-47392.DATABASE_URL}
+  github:
+    branch: master
+    deploy_on_push: true
+    repo: evalinit/evalindex
+  http_port: 8080
+  instance_count: 2
+  instance_size_slug: professional-xs
+  name: signal
+  routes:
+  - path: /signal
+  source_dir: signal
+- image:
+    registry: library
+    registry_type: DOCKER_HUB
+    repository: redis
+    tag: 6.2-alpine
+  instance_count: 1
+  instance_size_slug: professional-xs
+  internal_ports:
+  - 6379
+  name: redis
+  source_dir: /
+static_sites:
+- catchall_document: index.html
+  environment_slug: html
+  github:
+    branch: master
+    deploy_on_push: true
+    repo: evalinit/evalindex
+  name: evalindex
+  routes:
+  - path: /
+  source_dir: static/html
