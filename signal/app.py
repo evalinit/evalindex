@@ -5,7 +5,7 @@ from hashlib import sha512
 from random import shuffle
 from uuid import uuid4
 
-import aioredis
+from redis import asyncio as aioredis
 from aiohttp import web, WSMsgType, ClientSession
 
 
