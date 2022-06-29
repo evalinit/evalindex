@@ -1,7 +1,0 @@
-docker run --network=host -d --restart unless-stopped coturn/coturn \
-           --log-file=stdout \
-           --external-ip='$(detect-external-ip)' \
-           --relay-ip='$(detect-external-ip)' \
-           --max-allocate-lifetime=10 \
-           --max-bps=10000 \
-           --no-auth
