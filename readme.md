@@ -30,5 +30,3 @@ Pull requests for [namespaces](https://github.com/evalinit/servers/tree/main/has
 2. open example.server.localhost:8000
 3. paste the above code into the localStorage key index.js
 4. open example.localhost:8000
-
-See [/sample-server](/sample-server) for more examples
