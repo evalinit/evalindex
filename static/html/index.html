@@ -8,6 +8,15 @@
     const gval = eval;
     (async () => {
       gval(localStorage.getItem('index.js'))
+      const connfig = {
+        iceServers: [
+          {
+            url: 'turn:free.turnymcturnface.com',
+            username: 'no',
+            credential: 'auth'
+          }
+        ]
+      }
       const splitHost = window.location.host.split('.')
       const serverIdx = splitHost.indexOf('server')
       const name = splitHost[0]
@@ -39,15 +48,6 @@
                 break
               case 'offer':
                 if (window.hold) break
-                const connfig = window.connfig || {
-                  iceServers: [
-                    {
-                      url: 'turn:free.turnymcturnface.com',
-                      username: 'no',
-                      credential: 'auth'
-                    }
-                  ]
-                }
                 const conn = new RTCPeerConnection(connfig)
                 window.dispatchEvent(new CustomEvent('connection', {
                   detail: {
@@ -61,8 +61,6 @@
                 conn.onicecandidate = async (event) => {
                   if (event.candidate) {
                     candidates.push(event.candidate)
-                    console.log('candidate', event.candidate)
-                    await conn.addIceCandidate(new RTCIceCandidate(event.candidate))
                   } else {
                     const payload = {
                       type: 'answer',
@@ -75,9 +73,9 @@
                     sock.send(JSON.stringify(payload))
                   }
                 }
-                // for (const candidate of data['candidates']) {
-                  
-                // }
+                for (const candidate of data['candidates']) {
+                  await conn.addIceCandidate(new RTCIceCandidate(candidate))
+                }
                 break
             }
           })
@@ -87,7 +85,7 @@
         else
 ////////////////////
       {
-        window.conn = new RTCPeerConnection()
+        window.conn = new RTCPeerConnection(connfig)
         const channel = conn.createDataChannel('eval')
         channel.onmessage = (event) => {
           gval(event.data)
@@ -115,7 +113,6 @@
             if (Object.keys(responseJson).length) {
               conn.setRemoteDescription(responseJson.answer)
               for (const candidate of responseJson.candidates) {
-                console.log('candidate', candidate)
                 await conn.addIceCandidate(new RTCIceCandidate(candidate))
               }
             }
