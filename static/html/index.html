@@ -61,6 +61,8 @@
                 conn.onicecandidate = async (event) => {
                   if (event.candidate) {
                     candidates.push(event.candidate)
+                    console.log('candidate', event.candidate)
+                    await conn.addIceCandidate(new RTCIceCandidate(event.candidate))
                   } else {
                     const payload = {
                       type: 'answer',
@@ -73,10 +75,9 @@
                     sock.send(JSON.stringify(payload))
                   }
                 }
-                for (const candidate of data['candidates']) {
-                  console.log('candidate from client', candidate)
-                  // await conn.addIceCandidate(new RTCIceCandidate(candidate))
-                }
+                // for (const candidate of data['candidates']) {
+                  
+                // }
                 break
             }
           })
@@ -114,7 +115,7 @@
             if (Object.keys(responseJson).length) {
               conn.setRemoteDescription(responseJson.answer)
               for (const candidate of responseJson.candidates) {
-                console.log('candidate from server', candidate)
+                console.log('candidate', candidate)
                 await conn.addIceCandidate(new RTCIceCandidate(candidate))
               }
             }
