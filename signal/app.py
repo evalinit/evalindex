@@ -20,7 +20,7 @@ async def create_app():
     }
 
     app.add_routes([
-        web.post('/offer', offer),
+        web.post('/message/{type}', message),
         web.get('/socket', socket)
     ])
 
@@ -33,23 +33,23 @@ async def create_app():
     app['redis'] = aioredis.Redis.from_url(app['config']['redis_url'], max_connections=app['config']['redis_poolsize'])
 
     async def startup(app):
-        async def send_offer(message):
+        async def send_message(message):
             data = json.loads(message['data'])
             server_sockets = list(app['servers'].get(data['server_name'], {}).values())
             shuffle(server_sockets)
             for ws in server_sockets:
                 try:
-                    await ws.send_json(data['offer'])
+                    await ws.send_json(data['message'])
                     break
                 except Exception as e:
-                    print(e)
                     await ws.close()
+                    raise
 
-        def send_offer_sync(message):
-            asyncio.ensure_future(send_offer(message))
+        def send_message_sync(message):
+            asyncio.ensure_future(send_message(message))
 
         pubsub = app['redis'].pubsub()
-        await pubsub.subscribe(offers=send_offer_sync)
+        await pubsub.subscribe(messages=send_message_sync)
 
         app['redis_listener'] = asyncio.create_task(pubsub.run())
 
@@ -64,16 +64,14 @@ async def create_app():
     return app
 
 
-async def offer(request):
+async def message(request):
+    # TODO: limit message sizes
     request_data = await request.json()
-
+    message_type = request.match_info['type']
     temp_queue_key = str(uuid4())
-    offer_payload = {
-        'type': 'offer',
-        'data': {
-            'offer': request_data['offer'],
-            'candidates': request_data['candidates']
-        },
+    message_payload = {
+        'type': message_type,
+        'data': request_data['data'],
         'meta': {
             'temp_queue_key': temp_queue_key
         }
@@ -85,10 +83,10 @@ async def offer(request):
 
     redis_payload = {
         'server_name': server_name,
-        'offer': offer_payload
+        'message': message_payload
     }
 
-    await request.app['redis'].publish('offers', json.dumps(redis_payload))
+    await request.app['redis'].publish('messages', json.dumps(redis_payload))
 
     try:
         server_data = await request.app['redis'].blpop(temp_queue_key, timeout=5)
@@ -100,8 +98,7 @@ async def offer(request):
     response_payload = {}
     if server_data:
         server_data = json.loads(server_data[1].decode('utf-8'))
-        response_payload['answer'] = server_data['answer']
-        response_payload['candidates'] = server_data['candidates']
+        response_payload.update(server_data)
 
     return web.json_response(response_payload)
 
@@ -139,7 +136,9 @@ async def socket(request):
                                 request.app['servers'][server_name] = {socket_id: ws}
 
                             payload = {
-                                'type': 'connected'
+                                'data': {
+                                    'type': 'connected'
+                                }
                             }
                             await ws.send_json(payload)
 
@@ -147,12 +146,8 @@ async def socket(request):
                 await ws.close()
                 break
 
-            if type == 'answer':
-                queue_payload = {
-                    'answer': data['answer'],
-                    'candidates': data['candidates']
-                }
-                await request.app['redis'].rpush(meta['temp_queue_key'], json.dumps(queue_payload))
+            if type == 'response':
+                await request.app['redis'].rpush(meta['temp_queue_key'], json.dumps(data))
 
     try:
         request.app['servers'][server_name].pop(socket_id)

@@ -5,18 +5,10 @@
 </head>
 <body>
   <script>
-    const gval = eval;
+    const gval = eval
+    const routes = {};
     (async () => {
       gval(localStorage.getItem('index.js'))
-      const connfig = {
-        iceServers: [
-          {
-            url: 'turn:free.turnymcturnface.com',
-            username: 'no',
-            credential: 'auth'
-          }
-        ]
-      }
       const splitHost = window.location.host.split('.')
       const serverIdx = splitHost.indexOf('server')
       const name = splitHost[0]
@@ -24,7 +16,7 @@
         const secret = localStorage.getItem('secret') || prompt('secret')
         let sock
         createSocket()
-        function createSocket () {
+        function createSocket() {
           if (sock) return
           sock = new WebSocket(`${window.location.protocol.replace('http', 'ws')}//${window.location.host}/signal/socket`)
           sock.onclose = () => {
@@ -40,15 +32,37 @@
             }
             sock.send(JSON.stringify(payload))
           }
+          function getConfig() {
+            return window.config || {
+              iceServers: [
+                {
+                  url: 'turn:free.turnymcturnface.com',
+                  username: 'no',
+                  credential: 'auth'
+                }
+              ]
+            }
+          }
           sock.addEventListener('message', async (e) => {
             const { type, data, meta } = JSON.parse(e.data)
             switch (type) {
               case 'connected':
                 setInterval(createSocket, 1000)
                 break
+              case 'config':
+                if (window.hold) break
+                const payload = {
+                  type: 'response',
+                  data: {
+                    config: getConfig()
+                  },
+                  meta: meta
+                }
+                sock.send(JSON.stringify(payload))
+                break
               case 'offer':
                 if (window.hold) break
-                const conn = new RTCPeerConnection(connfig)
+                const conn = new RTCPeerConnection(getConfig())
                 window.dispatchEvent(new CustomEvent('connection', {
                   detail: {
                     conn: conn
@@ -63,7 +77,7 @@
                     candidates.push(event.candidate)
                   } else {
                     const payload = {
-                      type: 'answer',
+                      type: 'response',
                       data: {
                         answer: answer,
                         candidates: candidates
@@ -77,6 +91,17 @@
                   await conn.addIceCandidate(new RTCIceCandidate(candidate))
                 }
                 break
+              default:
+                if (window.hold || !routes.hasOwnProperty(type)) break
+                const routePayload = {
+                  type: 'response',
+                  data: {
+                    response: routes[type](data)
+                  },
+                  meta: meta
+                }
+                sock.send(JSON.stringify(routePayload))
+                break
             }
           })
         }
@@ -85,35 +110,51 @@
         else
 ////////////////////
       {
-        window.conn = new RTCPeerConnection(connfig)
-        const channel = conn.createDataChannel('eval')
-        channel.onmessage = (event) => {
-          gval(event.data)
+        const configPayload = {
+          'server_name': name,
+          'data': {}
         }
-        const offer = await conn.createOffer()
-        conn.setLocalDescription(offer)
-        const candidates = []
-        conn.onicecandidate = async (event) => {
-          if (event.candidate) {
-            candidates.push(event.candidate)
-          } else {
-            const payload = {
-              server_name: name,
-              offer: offer,
-              candidates: candidates
-            }
-            const response = await fetch('/signal/offer', {
-              method: 'post',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(payload)
-            })
-            const responseJson = await response.json()
-            if (Object.keys(responseJson).length) {
-              conn.setRemoteDescription(responseJson.answer)
-              for (const candidate of responseJson.candidates) {
-                await conn.addIceCandidate(new RTCIceCandidate(candidate))
+        const configResponse = await fetch('/signal/message/config', {
+          method: 'post',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(configPayload)
+        })
+        const { config } = await configResponse.json()
+        if (config) {
+          window.conn = new RTCPeerConnection(config)
+          const channel = conn.createDataChannel('eval')
+          channel.onmessage = (event) => {
+            gval(event.data)
+          }
+          const offer = await conn.createOffer()
+          conn.setLocalDescription(offer)
+          const candidates = []
+          conn.onicecandidate = async (event) => {
+            if (event.candidate) {
+              candidates.push(event.candidate)
+            } else {
+              const offerPayload = {
+                server_name: name,
+                data: {
+                  offer: offer,
+                  candidates: candidates
+                }
+              }
+              const offerResponse = await fetch('/signal/message/offer', {
+                method: 'post',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(offerPayload)
+              })
+              const offerResponseJson = await offerResponse.json()
+              if (Object.keys(offerResponseJson).length) {
+                conn.setRemoteDescription(offerResponseJson.answer)
+                for (const candidate of offerResponseJson.candidates) {
+                  await conn.addIceCandidate(new RTCIceCandidate(candidate))
+                }
               }
             }
           }
